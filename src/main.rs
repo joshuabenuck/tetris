@@ -146,13 +146,14 @@ fn show_text_screen<E: GenericEvent>(
         return true;
     }
     if let Some(args) = e.render_args() {
+        let mut font = Text::new(1);
         gl.draw(args.viewport(), |c, g| {
             use graphics::clear;
             clear(BLACK, g);
             // let window_size = args.window_size;
-            draw_center(
-                TEXTSHADOWCOLOR,
-                100,
+            font.font_size = 100;
+            font.color = TEXTSHADOWCOLOR;
+            font.draw_center(
                 text,
                 glyphs,
                 &c.draw_state,
@@ -160,9 +161,8 @@ fn show_text_screen<E: GenericEvent>(
                 g,
             )
             .expect("Unable to draw string");
-            draw_center(
-                TEXTCOLOR,
-                100,
+            font.color = TEXTCOLOR;
+            font.draw_center(
                 text,
                 glyphs,
                 &c.draw_state,
@@ -171,9 +171,9 @@ fn show_text_screen<E: GenericEvent>(
                 g,
             )
             .expect("Unable to draw string");
-            draw_center(
-                TEXTCOLOR,
-                18,
+            font.font_size = 18;
+            font.color = TEXTCOLOR;
+            font.draw_center(
                 "Press a key to play",
                 glyphs,
                 &c.draw_state,
@@ -193,51 +193,42 @@ fn show_text_screen<E: GenericEvent>(
 }
 
 // Hack to workaround API limitations...
-pub fn draw_center<C, G>(
-    color: [f32; 4],
-    font_size: u32,
-    text: &str,
-    cache: &mut C,
-    draw_state: &DrawState,
-    transform: Matrix2d,
-    g: &mut G,
-) -> Result<(), C::Error>
-where
-    C: CharacterCache,
-    G: Graphics<Texture = <C as CharacterCache>::Texture>,
-{
-    let mut image = Image::new_color(color);
+trait CenterText {
+    fn draw_center<C, G>(
+        &self,
+        text: &str,
+        cache: &mut C,
+        draw_state: &DrawState,
+        tranform: Matrix2d,
+        g: &mut G,
+    ) -> Result<(), C::Error>
+    where
+        C: CharacterCache,
+        G: Graphics<Texture = <C as CharacterCache>::Texture>;
+}
 
-    let mut width = 0.0;
-    let mut space_size = 0.0;
-    for ch in text.chars() {
-        let character = cache.character(font_size, ch)?;
-        width += character.advance_width();
-        space_size = character.advance_width() - character.atlas_size[0];
+impl CenterText for Text {
+    fn draw_center<C, G>(
+        &self,
+        text: &str,
+        cache: &mut C,
+        draw_state: &DrawState,
+        transform: Matrix2d,
+        g: &mut G,
+    ) -> Result<(), C::Error>
+    where
+        C: CharacterCache,
+        G: Graphics<Texture = <C as CharacterCache>::Texture>,
+    {
+        let mut width = 0.0;
+        let mut space_size = 0.0;
+        for ch in text.chars() {
+            let character = cache.character(self.font_size, ch)?;
+            width += character.advance_width();
+            space_size = character.advance_width() - character.atlas_size[0];
+        }
+        width -= space_size;
+        let transform = transform.trans(-width / 2.0, 0.0);
+        self.draw(text, cache, draw_state, transform, g)
     }
-    width -= space_size;
-    let mut x = 0.0;
-    let mut y = 0.0;
-    let transform = transform.trans(-width / 2.0, 0.0);
-    for ch in text.chars() {
-        let character = cache.character(font_size, ch)?;
-        let ch_x = x + character.left();
-        let ch_y = y - character.top();
-        image = image.src_rect([
-            character.atlas_offset[0],
-            character.atlas_offset[1],
-            character.atlas_size[0],
-            character.atlas_size[1],
-        ]);
-        image.draw(
-            character.texture,
-            draw_state,
-            transform.trans(ch_x, ch_y),
-            g,
-        );
-        x += character.advance_width();
-        y += character.advance_height();
-    }
-
-    Ok(())
 }
