@@ -590,6 +590,17 @@ impl Tetris {
                 clear(BLACK, g);
                 self.board.draw(&c, g);
                 self.draw_status(&c, g, glyphs);
+                let mut font = Text::new(18);
+                font.color = TEXTCOLOR;
+                font.draw(
+                    "Next:",
+                    glyphs,
+                    &c.draw_state,
+                    c.transform.trans((WIDTH - 120) as f64, 80.0f64),
+                    g,
+                )
+                .expect("Unable to draw string");
+                self.next_piece.draw_at(WIDTH - 120, 100, &c, g);
                 if !self.falling_piece.is_none() {
                     self.falling_piece.as_ref().unwrap().draw(&c, g);
                 }
